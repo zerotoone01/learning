@@ -358,8 +358,13 @@ super权限只能留个DBA处理问题的账号使用
 
 ### 第2章 电商实例数据库结构设计
  在数据库开发规范的基础之上，如何更好的利用规范设计出易于维护和伸缩性良好的数据库结构，是我们的学习目的。这一章我们根据常用电商项目需求实例，来进行具体的数据库结构的设计。在这一章中我们可以学到，什么是数据库设计的第三范式，如何对需求中所涉及的各个模块遵循数据库开发规范的要求，进行数据库的物理设计和逻...
-### 2-1 电商项目用户模块
 
+
+
+#### 第三范式（3NF）
+3NF定义： 一个表中的列和其他列之间不包含部分函数依赖关系，也不包含传递函数依赖关系，那么这个表的设计就符合第三范式
+
+### 2-1 电商项目用户模块
 
 ```
 CREATE TABLE `customer_inf` (
@@ -380,22 +385,599 @@ CREATE TABLE `customer_inf` (
   PRIMARY KEY (`customer_inf_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=10011 DEFAULT CHARSET=utf8 COMMENT='用户信息表';
 ```
+当前用户表设计不符合第三范式，相互之间存在依赖关系，登录名《--用户级别《---级别积分上限，级别积分下限
+![img](./img/02_2019-06-30_20-58-00.png)
+
+通过拆分当前用户表以符合第三范式，以下设计基本符合3NF：
+![img](./img/02_2019-06-30_21-01-04.png)
+
+尽量做到冷热数据分离，减小表的宽度：
+![img](./img/02_2019-06-30_21-03-09.png)
+```
+CREATE TABLE `customer_login` (
+  `customer_id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT '用户ID',
+  `login_name` varchar(20) NOT NULL COMMENT '用户登陆名',
+  `password` char(32) NOT NULL COMMENT 'md5加密的密码',
+  `user_stats` tinyint(4) NOT NULL DEFAULT '1' COMMENT '用户状态',
+  `modified_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后修改时间',
+  PRIMARY KEY (`customer_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=10011 DEFAULT CHARSET=utf8 COMMENT='用户登陆表';
+
+CREATE TABLE `customer_inf` (
+  `customer_inf_id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增主键ID',
+  `customer_id` int(10) unsigned NOT NULL COMMENT 'customer_login表的自增ID',
+  `customer_name` varchar(20) NOT NULL COMMENT '用户真实姓名',
+  `identity_card_type` tinyint(4) NOT NULL DEFAULT '1' COMMENT '证件类型：1 身份证,2军官证,3护照',
+  `identity_card_no` varchar(20) DEFAULT NULL COMMENT '证件号码',
+  `mobile_phone` int(10) unsigned DEFAULT NULL COMMENT '手机号',
+  `customer_email` varchar(50) DEFAULT NULL COMMENT '邮箱',
+  `gender` char(1) DEFAULT NULL COMMENT '性别',
+  `user_point` int(11) NOT NULL DEFAULT '0' COMMENT '用户积分',
+  `register_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '注册时间',
+  `birthday` datetime DEFAULT NULL COMMENT '会员生日',
+  `customer_level` tinyint(4) NOT NULL DEFAULT '1' COMMENT '会员级别:1普通会员,2青铜会员,3白银会员,4黄金会员,5钻石会员',
+  `user_money` decimal(8,2) NOT NULL DEFAULT '0.00' COMMENT '用户余额',
+  `modified_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后修改时间',
+  PRIMARY KEY (`customer_inf_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=10011 DEFAULT CHARSET=utf8 COMMENT='用户信息表';
+
+
+CREATE TABLE `customer_login_log` (
+  `login_id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT '登录日志ID',
+  `customer_id` int(10) unsigned NOT NULL COMMENT '登录用户ID',
+  `login_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '用户登录时间',
+  `login_ip` int(10) unsigned NOT NULL COMMENT '登录IP',
+  `login_type` tinyint(4) NOT NULL COMMENT '登录类型:0未成功 1成功',
+  PRIMARY KEY (`login_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='用户登录日志表';
+```
+用户级别表
+![img](./img/02_2019-06-30_21-08-11.png)  
+用户地址表
+![img](./img/02_2019-06-30_21-09-37.png)
+用户积分日志表
+![img](./img/02_2019-06-30_21-11-10.png)  
+用户余额变动表
+![img](./img/02_2019-06-30_21-12-23.png)
+
+### MySQL分区表
+1.确认MySQL服务器是否支持分区表 
+
+```
+C:\Users\admin>mysql -uroot -p
+Enter password: ****
+
+mysql> SHOW PLUGINS;
++----------------------------+----------+--------------------+---------+---------+
+| Name                       | Status   | Type               | Library | License |
++----------------------------+----------+--------------------+---------+---------+
+| binlog                     | ACTIVE   | STORAGE ENGINE     | NULL    | GPL     |
+| mysql_native_password      | ACTIVE   | AUTHENTICATION     | NULL    | GPL     |
+.........
+| PERFORMANCE_SCHEMA         | ACTIVE   | STORAGE ENGINE     | NULL    | GPL     |
+| ARCHIVE                    | ACTIVE   | STORAGE ENGINE     | NULL    | GPL     |
+| BLACKHOLE                  | ACTIVE   | STORAGE ENGINE     | NULL    | GPL     |
+| FEDERATED                  | DISABLED | STORAGE ENGINE     | NULL    | GPL     |
+| partition                  | ACTIVE   | STORAGE ENGINE     | NULL    | GPL     |
+| ngram                      | ACTIVE   | FTPARSER           | NULL    | GPL     |
++----------------------------+----------+--------------------+---------+---------+
+
+结果中有  
+| partition                  | ACTIVE   | STORAGE ENGINE     | NULL    | GPL     |
+，说明支持分区表
+```
+2.MySQL分区表的特点
+在逻辑上表现为一个表，在物理上存储在多个文件中
+![img](./img/02_2019-06-30_21-27-05.png)  
+
 ### 2-2 Hash分区表
+HASH分区的特点：  
+	根据MOD(分区键、分区数)的值把数据存储到表的不同分区内；
+	数据可以平均的分布在各个分区中；
+
+如何建立HASH分区表：
+	表的字段中整型数据可以直接用于hash，非整型数据需要转换成整型数据类型后再hash
+![img](./img/02_2019-06-30_21-32-45.png)
+数据库中支持用于支持hash取整的函数也是有限的，主要有如下函数：
+![img](./img/02_2019-06-30_21-35-08.png)  
+
 ### 2-3 Range分区
+RANGE分区特点：
+	根据分区键值的范围把数据行存储到表的不同分区中；
+	多个分区的范围要连续，但是不能重叠；
+	默认情况下使用VALUES LESS THAN属性，即每个分区不包括指定的那个值；
+	
+如何建立范围分区：
+![img](./img/02_2019-06-30_21-41-48.png)
+
+RANGE分区的适用场景：
+	分区键为日期或者时间类型；
+	所有查询中都包括分区键；
+	定期按分区范围清理历史数据；
+
 ### 2-4 List分区
+LIST分区特点：
+	按分区键取值的列表进行分区；
+	同范围分区一样，各分区的列表值不能重复；
+	每一行数据必须能找到对应的分区列表，否则数据插入失败；
+	
+如何建立LIST分区：
+![img](./img/02_2019-06-30_21-47-08.png)
+
+**mysql还有其他形式的分区，但是不常用**
+
 ### 2-5 项目分区表演示
+**如何为customer_login_log表分区**
+业务场景：
+	用户每次登陆都会记录customer_login_log日志；
+	用户登录日志保存一年，一年后可以删除；
+根据业务场景，采用RANGE分区比较适合，并以login_time为分区键
+![img](./img/02_2019-06-30_21-52-18.png)
+![img](./img/02_2019-06-30_22-37-18.png)
+![img](./img/02_2019-06-30_22-39-00.png)
+![img](./img/02_2019-06-30_22-41-20.png)
+![img](./img/02_2019-06-30_22-44-01.png)
+
+归档之后的数据占用空间小，只能进行查询操作，不能进行写操作；
+
+使用分区表注意事项:
+	结合业务场景选择分区键，避免夸分区查询；
+	对分区表进行查询最好在WHERE从句中包含分区键；
+	具有主键或唯一索引的表，主键或唯一索引必须是分区键的一部分；
+	
+
 ### 2-6 商品模块
+
+商品实体信息
+![img](./img/02_2019-06-30_22-48-23.png)
+```
+CREATE TABLE `product_brand_info` (
+  `brand_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT COMMENT '品牌ID',
+  `brand_name` varchar(50) NOT NULL COMMENT '品牌名称',
+  `telephone` varchar(50) NOT NULL COMMENT '联系电话',
+  `brand_web` varchar(100) DEFAULT NULL COMMENT '品牌网站',
+  `brand_logo` varchar(100) DEFAULT NULL COMMENT '品牌logo URL',
+  `brand_desc` varchar(150) DEFAULT NULL COMMENT '品牌描述',
+  `brand_status` tinyint(4) NOT NULL DEFAULT '0' COMMENT '品牌状态,0禁用,1启用',
+  `brand_order` tinyint(4) NOT NULL DEFAULT '0' COMMENT '排序',
+  `modified_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后修改时间',
+  PRIMARY KEY (`brand_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8 COMMENT='品牌信息表';
+
+CREATE TABLE `product_category` (
+  `category_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT COMMENT '分类ID',
+  `category_name` varchar(10) NOT NULL COMMENT '分类名称',
+  `category_code` varchar(10) NOT NULL COMMENT '分类编码',
+  `parent_id` smallint(5) unsigned NOT NULL DEFAULT '0' COMMENT '父分类ID',
+  `category_level` tinyint(4) NOT NULL DEFAULT '1' COMMENT '分类层级',
+  `category_status` tinyint(4) NOT NULL DEFAULT '1' COMMENT '分类状态',
+  `modified_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后修改时间',
+  PRIMARY KEY (`category_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=73 DEFAULT CHARSET=utf8 COMMENT='商品分类表';
+
+CREATE TABLE `product_supplier_info` (
+  `supplier_id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT '供应商ID',
+  `supplier_code` char(8) NOT NULL COMMENT '供应商编码',
+  `supplier_name` char(50) NOT NULL COMMENT '供应商名称',
+  `supplier_type` tinyint(4) NOT NULL COMMENT '供应商类型:1.自营,2.平台',
+  `link_man` varchar(10) NOT NULL COMMENT '供应商联系人',
+  `phone_number` varchar(50) NOT NULL COMMENT '联系电话',
+  `bank_name` varchar(50) NOT NULL COMMENT '供应商开户银行名称',
+  `bank_account` varchar(50) NOT NULL COMMENT '银行账号',
+  `address` varchar(200) NOT NULL COMMENT '供应商地址',
+  `supplier_status` tinyint(4) NOT NULL DEFAULT '0' COMMENT '状态:0禁用,1启用',
+  `modified_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后修改时间',
+  PRIMARY KEY (`supplier_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8 COMMENT='供应商信息表';
+
+CREATE TABLE `product_info` (
+  `product_id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT '商品ID',
+  `product_code` char(16) NOT NULL COMMENT '商品编码',
+  `product_name` varchar(50) NOT NULL COMMENT '商品名称',
+  `bar_code` varchar(50) NOT NULL COMMENT '国条码',
+  `brand_id` int(10) unsigned NOT NULL COMMENT '品牌表的ID',
+  `one_category_id` smallint(5) unsigned NOT NULL COMMENT '一级分类ID',
+  `two_category_id` smallint(5) unsigned NOT NULL COMMENT '二级分类ID',
+  `three_category_id` smallint(5) unsigned NOT NULL COMMENT '三级分类ID',
+  `supplier_id` int(10) unsigned NOT NULL COMMENT '商品的供应商id',
+  `price` decimal(8,2) NOT NULL COMMENT '商品销售价格',
+  `average_cost` decimal(18,2) NOT NULL COMMENT '商品加权平均成本',
+  `publish_status` tinyint(4) NOT NULL DEFAULT '0' COMMENT '上下架状态:0下架1上架',
+  `audit_status` tinyint(4) NOT NULL DEFAULT '0' COMMENT '审核状态:0未审核,1已审核',
+  `weight` float DEFAULT NULL COMMENT '商品重量',
+  `length` float DEFAULT NULL COMMENT '商品长度',
+  `heigh` float DEFAULT NULL COMMENT '商品高度',
+  `width` float DEFAULT NULL COMMENT '商品宽度',
+  `color_type` enum('红','黄','蓝','黒') DEFAULT NULL,
+  `production_date` datetime NOT NULL COMMENT '生产日期',
+  `shelf_life` int(11) NOT NULL COMMENT '商品有效期',
+  `descript` text NOT NULL COMMENT '商品描述',
+  `indate` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '商品录入时间',
+  `modified_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后修改时间',
+  PRIMARY KEY (`product_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=247271 DEFAULT CHARSET=utf8 COMMENT='商品信息表';
+
+-- 一个商品可能含有多个图片
+CREATE TABLE `product_pic_info` (
+  `product_pic_id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT '商品图片ID',
+  `product_id` int(10) unsigned NOT NULL COMMENT '商品ID',
+  `pic_desc` varchar(50) DEFAULT NULL COMMENT '图片描述',
+  `pic_url` varchar(200) NOT NULL COMMENT '图片URL',
+  `is_master` tinyint(4) NOT NULL DEFAULT '0' COMMENT '是否主图:0.非主图1.主图',
+  `pic_order` tinyint(4) NOT NULL DEFAULT '0' COMMENT '图片排序',
+  `pic_status` tinyint(4) NOT NULL DEFAULT '1' COMMENT '图片是否有效:0无效 1有效',
+  `modified_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后修改时间',
+  PRIMARY KEY (`product_pic_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='商品图片信息表';
+
+CREATE TABLE `product_comment` (
+  `comment_id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT '评论ID',
+  `product_id` int(10) unsigned NOT NULL COMMENT '商品ID',
+  `order_id` bigint(20) unsigned NOT NULL COMMENT '订单ID',
+  `customer_id` int(10) unsigned NOT NULL COMMENT '用户ID',
+  `title` varchar(50) NOT NULL COMMENT '评论标题',
+  `content` varchar(300) NOT NULL COMMENT '评论内容',
+  `audit_status` tinyint(4) NOT NULL COMMENT '审核状态:0未审核1已审核',
+  `audit_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '评论时间',
+  `modified_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后修改时间',
+  PRIMARY KEY (`comment_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='商品评论表';
+```
+
 ### 2-7 订单模块
+
+订单实体信息
+![img](./img/02_2019-06-30_22-55-06.png)
+```
+CREATE TABLE `order_master` (
+  `order_id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT '订单ID',
+  `order_sn` bigint(20) unsigned NOT NULL COMMENT '订单编号 yyyymmddnnnnnnnn',
+  `customer_id` int(10) unsigned NOT NULL COMMENT '下单人ID',
+  `shipping_user` varchar(10) NOT NULL COMMENT '收货人姓名',
+  `province` smallint(6) NOT NULL COMMENT '收货人所在省',
+  `city` smallint(6) NOT NULL COMMENT '收货人所在市',
+  `district` smallint(6) NOT NULL COMMENT '收货人所在区',
+  `address` varchar(100) NOT NULL COMMENT '收货人详细地址',
+  `payment_method` tinyint(4) NOT NULL COMMENT '支付方式:1现金,2余额,3网银,4支付宝,5微信',
+  `order_money` decimal(8,2) NOT NULL COMMENT '订单金额',
+  `district_money` decimal(8,2) NOT NULL DEFAULT '0.00' COMMENT '优惠金额',
+  `shipping_money` decimal(8,2) NOT NULL DEFAULT '0.00' COMMENT '运费金额',
+  `payment_money` decimal(8,2) NOT NULL DEFAULT '0.00' COMMENT '支付金额',
+  `shipping_comp_name` varchar(10) DEFAULT NULL COMMENT '快递公司名称',
+  `shipping_sn` varchar(50) DEFAULT NULL COMMENT '快递单号',
+  `create_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '下单时间',
+  `shipping_time` datetime DEFAULT NULL COMMENT '发货时间',
+  `pay_time` datetime DEFAULT NULL COMMENT '支付时间',
+  `receive_time` datetime DEFAULT NULL COMMENT '收货时间',
+  `order_status` tinyint(4) NOT NULL DEFAULT '0' COMMENT '订单状态',
+  `order_point` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '订单积分',
+  `invoice_title` varchar(100) DEFAULT NULL COMMENT '发票抬头',
+  `modified_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后修改时间',
+  PRIMARY KEY (`order_id`),
+  UNIQUE KEY `ux_ordersn` (`order_sn`)
+) ENGINE=InnoDB AUTO_INCREMENT=10011 DEFAULT CHARSET=utf8 COMMENT='订单主表';
+
+CREATE TABLE `order_detail` (
+  `order_detail_id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增主键ID,订单详情表ID',
+  `order_id` int(10) unsigned NOT NULL COMMENT '订单表ID',
+  `product_id` int(10) unsigned NOT NULL COMMENT '订单商品ID',
+  `product_name` varchar(50) NOT NULL COMMENT '商品名称',
+  `product_cnt` int(11) NOT NULL DEFAULT '1' COMMENT '购买商品数量',
+  `product_price` decimal(8,2) NOT NULL COMMENT '购买商品单价',
+  `average_cost` decimal(8,2) NOT NULL DEFAULT '0.00' COMMENT '平均成本价格',
+  `weight` float DEFAULT NULL COMMENT '商品重量',
+  `fee_money` decimal(8,2) NOT NULL DEFAULT '0.00' COMMENT '优惠分摊金额',
+  `w_id` int(10) unsigned NOT NULL COMMENT '仓库ID',
+  `modified_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后修改时间',
+  PRIMARY KEY (`order_detail_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=29698 DEFAULT CHARSET=utf8 COMMENT='订单详情表';
+
+CREATE TABLE `order_cart` (
+  `cart_id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT '购物车ID',
+  `customer_id` int(10) unsigned NOT NULL COMMENT '用户ID',
+  `product_id` int(10) unsigned NOT NULL COMMENT '商品ID',
+  `product_amount` int(11) NOT NULL COMMENT '加入购物车商品数量',
+  `price` decimal(8,2) NOT NULL COMMENT '商品价格',
+  `add_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '加入购物车时间',
+  `modified_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后修改时间',
+  PRIMARY KEY (`cart_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='购物车表';
+
+CREATE TABLE `warehouse_info` (
+  `w_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT COMMENT '仓库ID',
+  `warehouse_sn` char(5) NOT NULL COMMENT '仓库编码',
+  `warehouse_name` varchar(10) NOT NULL COMMENT '仓库名称',
+  `warehouse_phone` varchar(20) NOT NULL COMMENT '仓库电话',
+  `contact` varchar(10) NOT NULL COMMENT '仓库联系人',
+  `province` smallint(6) NOT NULL COMMENT '省',
+  `city` smallint(6) NOT NULL COMMENT '市',
+  `district` smallint(6) NOT NULL COMMENT '区',
+  `address` varchar(100) NOT NULL COMMENT '仓库地址',
+  `warehouse_status` tinyint(4) NOT NULL DEFAULT '1' COMMENT '仓库状态:0禁用,1启用',
+  `modified_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后修改时间',
+  PRIMARY KEY (`w_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8 COMMENT='仓库信息表';
+
+CREATE TABLE `warehouse_proudct` (
+  `wp_id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT '商品库存ID',
+  `product_id` int(10) unsigned NOT NULL COMMENT '商品id',
+  `w_id` smallint(5) unsigned NOT NULL COMMENT '仓库ID',
+  `currnet_cnt` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '当前商品数量',
+  `lock_cnt` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '当前占用数据',
+  `in_transit_cnt` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '在途数据',
+  `average_cost` decimal(8,2) NOT NULL DEFAULT '0.00' COMMENT '移动加权成本',
+  `modified_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后修改时间',
+  PRIMARY KEY (`wp_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='商品库存表';
+
+CREATE TABLE `shipping_info` (
+  `ship_id` tinyint(3) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键id',
+  `ship_name` varchar(20) NOT NULL COMMENT '物流公司名称',
+  `ship_contact` varchar(20) NOT NULL COMMENT '物流公司联系人',
+  `telphone` varchar(20) NOT NULL COMMENT '物流公司联系电话',
+  `price` decimal(8,2) NOT NULL DEFAULT '0.00' COMMENT '配送价格',
+  `modified_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后修改时间',
+  PRIMARY KEY (`ship_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='物流公司信息表';
+```
+
 ### 2-8 DB规划
+基本思路：
+	为以后数据库迁移提供方便；
+	避免垮库操作，把经常一起关联查询的表放到一个DB中；
+	为了方便识别表所在的DB，在表名前增加库名前缀；
+	
+当前课程中，分库分表如下：
+用户数据库（mc_customerdb）
+![img](./img/02_2019-06-30_23-01-44.png)
+商品数据库(mc_productdb)
+![img](./img/02_2019-06-30_23-11-39.png)
+订单数据库(mc_orderdb)
+![img](./img/02_2019-06-30_23-14-41.png)
 
 ### 第3章 MySQL执行计划（explain）分析
 MySQL执行计划可以告诉我们MySQL如何处理我们所提交的查询，通过对执行计划的分析，我们可以了解到MySQL如何使用表中的索引，如何从存储引擎中获取数据等。在这一章里我们会详细的学习MySQL执行计划的具体内容，通过对这一章的学习，相信大家可以更好完成对查询的优化。...
 ### 3-1 常见业务处理
+
+#### 如何对评论进行分页展示
+```
+SELECT
+	customer_id,title,content 
+FROM product_comment 
+WHERE audit_status = 1 AND product_id = 199726 LIMIT 0,5;
+```
 ### 3-2 执行计划分析
+查看一条SQL语句是否利用到索引以及具体的执行方式，可以在SQL语句前加上`EXPLAIN`， 目前该关键词只支持`select, update, insert, replace, delete`关键字
+
+执行计划能告诉我们什么？
+	SQL如何使用索引
+	关联查询的执行顺序
+	查询扫描的数据行数
+
+```
+EXPLAIN
+SELECT
+	customer_id,title,content 
+FROM product_comment 
+WHERE audit_status = 1 AND product_id = 199726 LIMIT 0,5;
+```
+![img](./img/03_2019-06-30_23-48-07.png)
+
+**ID列**：
+	ID列中的数据为一组数字，表示执行select语句的顺序；
+	ID值相同时，执行顺序由上至下；
+	ID值越大优先级越高，越先被执行；
+	
+
+```
+EXPLAIN
+SELECT c.category_name, a.product_name, b.title
+FROM product_info a 
+JOIN product_comment b ON a.product_id = b.product_id
+JOIN product_category c ON c.category_id = a.one_category_id;
+```
+![img](./img/03_2019-07-01_00-00-16.png)
+
+```
+EXPLAIN
+SELECT title FROM product_comment WHERE product_id IN(
+	SELECT MAX(product_id) FROM product_info WHERE one_category_id IN(SELECT MIN(category_id) FROM product_category)
+);
+```
+![img](./img/03_2019-07-01_00-06-10.png)
+
+**SELECT_TYPE列**：
+|值|含义|
+|----|---|
+|SIMPLE|不包含子查询或是UNION操作的查询|
+|PRIMARY|查询中如果包含任何子查询，那么最外层的查询则被标记为PRIMARY|
+|SUBQUERY|SELECT列表中的子查询|
+|DEPENDENT SUBQUERY|依赖外部结果的子查询|
+|UNION|Union操作的第二个或是之后的查询的值为UNION|
+|DEPENDENT UNION|当UNION作为子查询时，第二个或是第二个后的查询的select_type值|
+|UNION RESULT|UNION产生的结果集|
+|DERIVED|出现在FROM子句中的子查询|
+
+
+![img](./img/03_2019-07-01_00-10-27.png) 
+
+**TABLE列**：
+输出数据行所在的表的名称；
+<unionM, N>由ID为M，N查询union产生的结果集；
+<derivedN>/<subqueryN> 由ID为N的查询产生的结果集；
+
+***PARTITIONS列*：
+对于分区表，显示查询的分区ID；
+对于非分区表，显示为NULL；
+
+**TYPE列**：
+![img](./img/03_2019-07-01_00-31-51.png)
+
+**EXTRA列**:
+|值|含义|
+|---|---|
+|Distinct|优化distinct操作，在找到第一匹配的远元组后即停止找同样值的动作|
+|Not Exists|使用not exists来优化查询|
+|Using filesort|使用额外操作进行排序，通常会在order by或group by查询中|
+|Using index|使用了覆盖索引进行查询|
+|Using temporary|MySQL需要使用临时表来处理查询，常见于排序，子查询，和分组查询|
+|Using where|需要在MySQL服务器层使用where条件来过滤数据|
+|select tables optimized away|直接通过索引来获得数据，不用访问表|
+**POSSIBLE_KEYS列**:
+指出MySQL能使用那些索引来优化查询；
+查询列所涉及到的列上的索引都会被列出，但不一定会被使用；
+**KEY列**:
+查询优惠期优化查询实际所使用的索引；
+如果没有可用的索引，则显示为NULL；
+如查询使用了覆盖索引，则该索引仅出现在key列中；
+
+**KEY_LEN列**:
+表示索引字段的最大可能长度；
+Key_len的长度由字段定义计算而来，并非数据的实际长度；
+
+**REF列**:
+表示那些列或常量被用于查找索引列上的值；
+
+**ROWS列**:
+表示mysql通过索引统计信息，估算的所需读取的行数；
+Rows值的大小是个统计抽样结果，并不是十分准确；
+
+**FILTERED列**:
+表示返回结果的行数占需要读取行数的百分比；
+filtered列的值越大越好；
+filtered列的值依赖于统计信息，并不是十分准确；
+
+#### 执行计划的限制
+无法展示存储过程，触发器，UDF对查询的影响；
+无法使用EXPLAIN对存储过程进行分析；
+早期版本的MySQL只支持对select语句进行分析；
+
 ### 3-3 如何优化分页查询示例
+![img](./img/03_2019-07-01_01-00-58.png)
+
+创建索引之后的查询
+![img](./img/03_2019-07-01_01-49-08.png)
+
+进一步优化评论分页查询，这样优化后尽量保持每次分页的查询效率是一致的
+![img](./img/03_2019-07-01_01-51-27.png)
+
 ### 3-4 如何删除重复数据示例
+**业务需求**：删除评论表中对同一订单统一商品的重复评论，只保留最早的一条
+具体操作步骤：
+	1.查看是否存在对于一订单同一商品的重复评论
+	2.备份product_comment表
+	3.删除同一订单的重复评论
+
+示例：
+查看是否有重复评论
+![img](./img/03_2019-07-01_01-57-23.png)
+备份原来的表
+![img](./img/03_2019-07-01_01-59-17.png)
+删除重复数据
+![img](./img/03_2019-07-01_02-01-30.png)
+
 ### 3-5 如何进行分区间数据统计示例
+示例：
+![img](./img/03_2019-07-01_02-03-07.png)
+```
+SELECT
+COUNT(CASE WHEN IFNULL(total_money,0)>=1000 THEN a.customer_id END) as '大于1000'
+,COUNT(CASE WHEN IFNULL(total_money,0)>=800 AND IFNULL(total_money,0)<1000 THEN a.customer_id END) as '800-1000'
+,COUNT(CASE WHEN IFNULL(total_money,0)>=500 AND IFNULL(total_money,0)<8000 THEN a.customer_id END) as '500-8000'
+,COUNT(CASE WHEN IFNULL(total_money,0)<500 THEN a.customer_id END) as '小于500'
+FROM mc_userdb.customer_login a
+LEFT JOIN
+(SELECT customer_id, SUM(order_money) as total_money FROM mc_orderdb.order_master GROUP BY customer_id) b 
+ON a.customer_id=b.customer_id;
+```
+![img](./img/03_2019-07-01_02-15-54.png)
+
 ### 3-6 捕获有问题的SQL-慢查日志
+**捕获有问题的SQL**
+启动MySQL慢查询日志：
+![img](./img/03_2019-07-01_02-20-56.png)
+慢查询日志内容：
+![img](./img/03_2019-07-01_02-23-20.png)
+
+```
+参考：https://www.cnblogs.com/luyucheng/p/6265594.html
+二、参数说明
+slow_query_log 慢查询开启状态
+slow_query_log_file 慢查询日志存放的位置（这个目录需要MySQL的运行帐号的可写权限，一般设置为MySQL的数据存放目录）
+long_query_time 查询超过多少秒才记录
+
+三、设置步骤
+1.查看慢查询相关参数
+
+复制代码
+mysql> show variables like 'slow_query%';
++---------------------------+----------------------------------+
+| Variable_name             | Value                            |
++---------------------------+----------------------------------+
+| slow_query_log            | OFF                              |
+| slow_query_log_file       | /mysql/data/localhost-slow.log   |
++---------------------------+----------------------------------+
+
+mysql> show variables like 'long_query_time';
++-----------------+-----------+
+| Variable_name   | Value     |
++-----------------+-----------+
+| long_query_time | 10.000000 |
++-----------------+-----------+
+复制代码
+2.设置方法
+方法一：全局变量设置
+将 slow_query_log 全局变量设置为“ON”状态
+
+mysql> set global slow_query_log='ON'; 
+设置慢查询日志存放的位置
+
+mysql> set global slow_query_log_file='/usr/local/mysql/data/slow.log';
+查询超过1秒就记录
+
+mysql> set global long_query_time=1;
+方法二：配置文件设置
+修改配置文件my.cnf，在[mysqld]下的下方加入
+
+[mysqld]
+slow_query_log = ON
+slow_query_log_file = /usr/local/mysql/data/slow.log
+long_query_time = 1
+3.重启MySQL服务
+
+service mysqld restart
+4.查看设置后的参数
+
+复制代码
+mysql> show variables like 'slow_query%';
++---------------------+--------------------------------+
+| Variable_name       | Value                          |
++---------------------+--------------------------------+
+| slow_query_log      | ON                             |
+| slow_query_log_file | /usr/local/mysql/data/slow.log |
++---------------------+--------------------------------+
+
+mysql> show variables like 'long_query_time';
++-----------------+----------+
+| Variable_name   | Value    |
++-----------------+----------+
+| long_query_time | 1.000000 |
++-----------------+----------+
+复制代码
+四、测试
+1.执行一条慢查询SQL语句
+
+mysql> select sleep(2);
+2.查看是否生成慢查询日志
+
+ls /usr/local/mysql/data/slow.log
+如果日志存在，MySQL开启慢查询设置成功！
+```
+#### 如何分析慢查询日志
+直接查看慢查询日志，效率不高，慢查询日志中有很多重复的mysql执行语句，采用mysql自带的工具来分析
+![img](./img/03_2019-07-01_02-26-03.png)
+
+
 ### 第4章 MySQL数据库备份和恢复
 对于任何数据库来说，数据库备份和恢复是最为重要的内容，可以说数据库备份决定了数据库的安全。所以在这一章中咱们就来看看常用的MySQL数据库的备份和恢复方式，包括如何使用mysqldump进行数据库的全备和部分备份，如何使用xtrabackup对数据库进行全备和增量备份，以及相应的恢复方法，如何使用binlog对数据库进行时间点的...
 ### 4-1 数据库备份
