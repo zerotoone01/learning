@@ -981,9 +981,77 @@ ls /usr/local/mysql/data/slow.log
 
 ## 第4章 MySQL数据库备份和恢复
 对于任何数据库来说，数据库备份和恢复是最为重要的内容，可以说数据库备份决定了数据库的安全。所以在这一章中咱们就来看看常用的MySQL数据库的备份和恢复方式，包括如何使用mysqldump进行数据库的全备和部分备份，如何使用xtrabackup对数据库进行全备和增量备份，以及相应的恢复方法，如何使用binlog对数据库进行时间点的...
+
 ### 4-1 数据库备份
+#### 逻辑备份和物理备份
+	逻辑备份的结果为SQL语句，适合于所有存储引擎(逻辑备份恢复数据效率比较低，有的数据形式需要转换)；
+	物理备份是对数据库目录的拷贝，对于内存表只备份结构（对于memory形式的数据无法备份--memory数据存在内存中，没有具体形式的数据文件）；
+	物理备份需要借助于第三方工具，常用的是Percona XtraBackup;
+
+#### 全量备份和增量备份
+	全量备份是对整个数据库的一个完整备份；
+	增量备份是在上次全量或者增量备份的基础上，对于更改数据进行的备份；
+	MySQL官方提供的MySQLDump并不支持增量备份，如果要使用mysqldump来备份的话，可以通过mysql的二进制日志来备份； 一般采用第三方备份工具进行增量备份，XtraBackup已经提供了增量备份功能； 无论是采用mysqldump还是XtraBackup备份，要基于时间点进行恢复数据时，都需要借助于mysql的二进制日志，因此通常情况下也需要对mysql的二进制日志进行备份；
+
+
 ### 4-2 mysqldump全备介绍
+#### 常用语法
+	-- 表备份，备份多个表，表名之间用空格
+	mysqldump [OPTIONS] database [tables]
+	-- 指定数据库备份，多个数据库之间用空格
+	mysqldump [OPTIONS] --databases [OPTIONS] DB1 [DB2..]
+	-- 备份所有数据库
+	mysqldump [OPTIONS] --all-databases [OPTIONS]
+
+#### 常用参数（cmd>mysqldump --help）
+![img](./img/04_2019-07-02_00-03-05.png)
+
+```
+##获取事务的一致性, 只对Innodb引擎有效，对隔离级别有要求
+--single-transaction
+##对于非事务性数据备份(MYISAM),该参数会锁表，只能进行读操作，和--single-transaction参数是互斥的，针对的数据引擎不一样；如果备份数据库中既有MYISAM也有Innodb,只能用该方式备份数据；该方式只能锁住某个表，并不能保证当前实例下所有表的数据具有一致性
+-l, --lock-tables
+##会对一个实例下的所有表加锁，保证所有备份数据和实例是一致的，但是备份过程中数据只能读
+-x, --lock-all-tables
+
+--master-data=[1/2]
+
+##备份存储过程需要的参数
+-R, --routines
+##备份数据库中的触发器
+--triggers
+##备份数据中的调度事件
+-E, --events
+##将对INARY, VARBINARY, BLOB数据转换成十六进制保存， mysql备份导出的文件是文本文件，这些格式的数据部分在文本形式中是不可见的
+--hex-blob
+##指定该路径后，mysqldump会在指定路径下生生成两个文件，一个文件用户存储表结构，另一个文件用于存储表中的数据
+--tab=path
+##where只支持单表数据条件导出
+-W, --where='过滤条件'
+
+```
+
 ### 4-3 mysqldump全备单库实例
+```
+##创建一个备份账号，只能在本地操作(localhost)
+mysql>create user 'backup'@'localhost' identified by '123456';
+##授权
+mysql>grant select, reload, lock tables, replication client, show view, event, process on *.*  to 'backup'@'localhost';
+mysql>exit
+
+
+cd /data/db_backup/
+##备份数据整个数据库
+mysqldump -ubackup -p --master-data=2 --signle-transaction --rotuines --triggers --events mc_orderdb > mc_orderdb.sql
+
+##备份单个表
+mysqldump -ubackup -p --master-data=2 --signle-transaction --rotuines --triggers --events mc_orderdb order_master > mc_ordermaster.sql
+
+##查看备份文件
+more mc_ordermaster.sql
+grep "指定查看内容" mc_ordermaster.sql
+
+```
 ### 4-4 mysqldump全备所有库和所有表实例
 ### 4-5 mysqldump全备Where及脚本备份
 ### 4-6 mysqldump恢复
