@@ -1053,11 +1053,113 @@ grep "指定查看内容" mc_ordermaster.sql
 
 ```
 ### 4-4 mysqldump全备所有库和所有表实例
+```
+##备份所有数据库
+mysqldump  -ubackup -p --master-data=2 --signle-transaction --rotuines --triggers --events --all -databases > mc.sql
+
+##过滤查看mc.sql文件中备份的数据库
+grep "Current Database" mc.sql
+
+##创建一个临时备份文件用于测试, /tmp文件默认对所有用户都有读写权限
+mkdir -p /tmp/mc_orderdb
+
+##在mysql中给backup用户授予写数据的权限
+mysql> grant file on *.* to 'backup'@'localhost';
+
+##指定路径下备份数据
+mysqldump  -ubackup -p --master-data=2 --signle-transaction --rotuines --triggers --events --table="/tmp/mc_orderdb"  mc_orderdb
+
+```
+
+![img](./img/04_2019-07-04_00-10-25.png)
+
+查看备份数据，其中sql文件是表结构， txt文件是表的数据
+![img](./img/04_2019-07-04_00-11-47.png)
+
 ### 4-5 mysqldump全备Where及脚本备份
+```
+##where参数备份数据
+mysqldump  -ubackup -p --master-data=2 --signle-transaction -where "order_id>1000 and order_id<1050" mc_orderdb ordermaster > order_master_1000.sql
+##查看备份数据
+more  order_master_1000.sql
+```
+#### 脚本备份
+backup.sh 脚本内容
+```
+#!/bin/bash
+###############Basic parameters##########################
+DAY=`date +%Y%m%d`
+Environment=$(/sbin/ifconfig | grep "inet addr" | head -1 |grep -v "127.0.0.1" | awk '{print $2;}' | awk -F':' '{print $2;}')
+USER="backup"
+PASSWD="123456"
+HostPort="3306"
+MYSQLBASE="/home/mysql/"
+DATADIR="/home/db_backup/${DAY}"
+MYSQL=`/usr/bin/which mysql`
+MYSQLDUMP=`/usr/bin/which mysqldump`
+mkdir -p ${DATADIR}
+
+Dump(){
+ ${MYSQLDUMP} --master-data=2 --single-transaction  --routines --triggers --events -u${USER} -p${PASSWD} -P${HostPort} ${database}  > ${DATADIR}/${Environment}-${database}.sql
+ cd ${DATADIR}
+ gzip ${Environment}-${database}.sql
+}
+
+for db in `echo "SELECT schema_name FROM information_schema.schemata where schema_name not in ('information_schema','sys','performance_schema')" | ${MYSQL} -u${USER} -p${PASSWD} --skip-column-names`
+do
+   database=${db}
+   Dump
+done
+
+```
+执行脚本： `bash backup.sh` 并查看备份结果
+![img](./img/04_2019-07-04_00-22-27.png)
+
+在实际生产中，可以通过Linux脚本定时调用该脚本，实现自动备份
+
 ### 4-6 mysqldump恢复
+
+备份数据恢复
+```
+mysql -u -p dbname < backup.sql
+mysql> source /tmp/backup.sql
+```
+![img](./img/04_2019-07-04_00-27-58.png)
+
 ### 4-7 mysqldump恢复实例
 ### 4-8 mysqldump恢复单表实例
+![img](./img/04_2019-07-04_00-35-11.png)
+建立数据表结构
+![img](./img/04_2019-07-04_00-36-40.png)
+![img](./img/04_2019-07-04_00-38-10.png)
+导入表的数据
+![img](./img/04_2019-07-04_00-39-56.png)
+
+如果全备份后的数据，只想恢复部分表的数据，备份时候采用 `--table`命令更高效
+
 ### 4-9 指定时点的恢复
+**先决条件**：
+	具有指定时间点前的一个全备；
+	具有自上次全备后到指定时间点的所有二进制日志；
+	
+**恢复步骤**：
+	
+1.新建一个表，用于插入数据测试（插入数据来源是已经备份过的数据）
+![img](./img/04_2019-07-04_00-52-11.png)
+2.插入成功后，并删除100条数据
+![img](./img/04_2019-07-04_00-54-00.png)
+3.先进行全量数据库备份恢复，查看备份恢复节点对应的日志名（mysql-bin.000011）以及数据备份的时间节点(84882)，需要恢复当前备份的时间节点(84882)到数据删除操作时间点之间的数据
+![img](./img/04_2019-07-04_00-58-12.png)
+![img](./img/04_2019-07-04_01-00-03.png)
+4.需要查看最后操作日志内容（mysql-bin.000011），找到相应（这里是删除操作）操作的时间点
+![img](./img/04_2019-07-04_01-08-53.png)
+要恢复的数据内容是上一次备份时间点84882到删除数据的时间点169348之间的数据
+![img](./img/04_2019-07-04_01-11-18.png)
+5.恢复数据--导入差异数据到SQL文件中，然后再将这个SQL文件导入
+![img](./img/04_2019-07-04_01-14-44.png)
+6.核对数据是否正确导入
+![img](./img/04_2019-07-04_01-17-16.png)
+
 ### 4-10 指定时点的Binlog恢复
 ### 4-11 实时binlog备份
 ### 4-12 xtrabackup备份和恢复
