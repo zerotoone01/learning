@@ -1161,9 +1161,41 @@ mysql> source /tmp/backup.sql
 ![img](./img/04_2019-07-04_01-17-16.png)
 
 ### 4-10 指定时点的Binlog恢复
+
+
 ### 4-11 实时binlog备份
+
+创建一个备份用户、备份文件夹
+![img](./img/04_2019-07-07_01-39-57.png)
+后台实时备份
+![img](./img/04_2019-07-07_01-44-42.png)  
+
 ### 4-12 xtrabackup备份和恢复
+Xtrabackup用于在线备份innodb存储引擎的表，是一个开源的在线热备份工具；
+备份过程中，不会影响表的读写操作；
+只会备份数据文件，不会备份表的结构；
+innobackupex是对xtrabackup的封装并提供MyISAM表的备份功能（innobackupex是xtrabackup的插件，支持Mysiam备份，但也会锁表）；
+
+#### 安装xtrabackup
+具体详见官网教程
+
+全量备份： innobackupex --user=root --password=pwd --parallel=2 /home/db_backup/
+增量备份： innobackupex --user=root --password=pwd --incremental /home/db_backup/  --increamental-basedir=/home/db_backup/back_dir
+
+`--increamental-basedir=/home/db_backup/back_dir`中的`/home/db_backup/back_dir`是上一次备份的目录
+
+#### 利用innobackupex进行全备份的恢复
+备份还原： innobackupex --apply-log /path/to/BACKUP-DIR
+
+增量备份恢复
+![img](./img/04_2019-07-07_02-11-23.png)
+
 ### 4-13 Mysql备份计划
+本项目备份计划：
+每天凌晨对数据进行一次全备；
+实时对二进制日志进行远程备份；
+
+（在Linux系统中添加一个全备脚本，指定Crontab定时任务即可）
 
 ## 第5章 高性能高可用MySQL架构变迁
 告别数据库的裸奔时代，对架构进行步步升级。这是我们本章要学习的重点内容。我们首先会从实例学习MySQL主从复制架构，详解主从分离的多种解决方案。通过keepalived+LVS完美组合，一步步打造高性能可扩展的数据库架构；通过数据库中间件MaxScale学习，讲解另类解决高可用的读负载均衡的问题
