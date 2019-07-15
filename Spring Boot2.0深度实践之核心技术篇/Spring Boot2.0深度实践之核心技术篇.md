@@ -63,15 +63,438 @@
 	生产准备特性：指标、健康检查、外部化配置等
 	
 ### 1-5 核心特性之组件自动装配工程部分
+**组件自动装配**
+	激活：@EnableAutoConfiguration
+	配置：/META-INF/spring.factories
+	实现：XXXAutoConfiguration
+	
+**嵌入式Web容器**
+	Web Servlet: Tomcat、Jetty和Undertow
+	Web Reactive: Netty Web Server
+	生产准备特性:指标（/actuator/metrics）、健康检查(/actuator/health)、外部化配置(/actuator/configprops)
+	
 ### 1-6 Web应用介绍
+**传统Servlet应用**
+	Servlet组件：Servlet、Filter、Listener
+	Servlet注册：Servlet注解、Spring Bean、Registration
+	异步非阻塞：异步Servlet、非阻塞Servlet
+	
 ### 1-7 传统 Servelt 应用
+项目中引入依赖
+```
+<dependency>
+	<groupId>org.springframework.boot</groupId>
+	<artifactId>spring-boot-starter-web</artifactId>
+</dependency>
+```
+**Servlet组件**：
+	* Servlet
+		* 实现
+			@WebServlet
+			HttpServlet
+			注册
+		* URL映射
+			@WebServlet(urlPatterns="/my/servlet")
+		* 注册
+			@ServletComponentScan(basePackages = {"com.huangxi.springboot.web.servlet"})
+
+
+目录结构
+![img](./img/01_2019-07-10_23-37-29.png)
+```
+import javax.servlet.ServletException;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+
+@WebServlet(urlPatterns = "/my/servlet")
+public class MyServlet extends HttpServlet {
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
+        resp.getWriter().print("hello, my servlet test!");
+    }
+}
+
+
+##########################################
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.web.servlet.ServletComponentScan;
+
+@SpringBootApplication
+@ServletComponentScan(basePackages = {"com.huangxi.springboot.web.servlet"})
+public class SpringbootApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(SpringbootApplication.class, args);
+    }
+
+}
+```
+	类似的组件还有 Filter、Listener
+
+**Servlet注册**
+	* Servlet注解
+		@ServletComponentScan
+			@WebServlet、@WebFilter、@WebListener
+	* Spring Bean
+		@Bean
+			Servlet、Filter、Listener
+	* Registration
+		ServletRegistration
+		FilterRegistration
+		ServletRegistration
+		
+
+
 ### 1-8 异步非阻塞 Servlet 代码示例
+**异步非阻塞**
+	异步Servlet
+		javax.servlet.ServletRequest#startAsync()
+		javax.servlet.AsyncContext
+	非阻塞 Servlet
+		javax.servlet.ServletInputStream#setReadListener
+			javax.servlet.ReadListener
+		javax.servlet.ServletOutputStream#setWriteListener
+			javax.servlet.WriteListener
+
+Servlet中开启异步
+```
+@WebServlet(urlPatterns = "/my/servlet"
+            ,asyncSupported = true)
+public class MyServlet extends HttpServlet {
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+            throws ServletException, IOException {
+        //@WebServlet要开启异步支持，否则如下设置也无效
+        AsyncContext asyncContext = req.startAsync();
+        asyncContext.start(()->{
+            try {
+                resp.getWriter().print("hello, my servlet test!");
+                //触发完成，如果不触发，会导致请求一直没有返回直达超时
+                asyncContext.complete();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+
+    }
+}
+```
+
 ### 1-9 Spring Web MVC 应用介绍
+#### Web MVC 视图
+ViewResolver
+View
+##### 模板引擎
+Thymeleaf
+Freemarker
+JSP
+##### 内容协商
+ContentNegotiationConfigurer
+ContentNegotiationStrategy
+ContentNegotiatingViewResolver --如果存在多个模板，内容协商启动
+##### 异常处理
+@ExceptionHandler
+HandlerExceptionResolver
+ExceptionHandlerExceptionResolver
+
+BasicErrorController (Spring Boot)
+![img](./img/01_2019-07-14_15-15-52.png)
+```
+@Controller
+@RequestMapping("${server.error.path:${error.path:/error}}")
+public class BasicErrorController extends AbstractErrorController {
+	private final ErrorProperties errorProperties;
+
+	/**
+	 * Create a new {@link BasicErrorController} instance.
+	 * @param errorAttributes the error attributes
+	 * @param errorProperties configuration properties
+	 */
+	public BasicErrorController(ErrorAttributes errorAttributes,
+			ErrorProperties errorProperties) {
+		this(errorAttributes, errorProperties, Collections.emptyList());
+	}
+
+	/**
+	 * Create a new {@link BasicErrorController} instance.
+	 * @param errorAttributes the error attributes
+	 * @param errorProperties configuration properties
+	 * @param errorViewResolvers error view resolvers
+	 */
+	public BasicErrorController(ErrorAttributes errorAttributes,
+			ErrorProperties errorProperties, List<ErrorViewResolver> errorViewResolvers) {
+		super(errorAttributes, errorViewResolvers);
+		Assert.notNull(errorProperties, "ErrorProperties must not be null");
+		this.errorProperties = errorProperties;
+	}
+
+	@Override
+	public String getErrorPath() {
+		return this.errorProperties.getPath();
+	}
+
+	//请求格式是text/html，走如下方法
+	@RequestMapping(produces = MediaType.TEXT_HTML_VALUE)
+	public ModelAndView errorHtml(HttpServletRequest request,
+			HttpServletResponse response) {
+		HttpStatus status = getStatus(request);
+		Map<String, Object> model = Collections.unmodifiableMap(getErrorAttributes(
+				request, isIncludeStackTrace(request, MediaType.TEXT_HTML)));
+		response.setStatus(status.value());
+		ModelAndView modelAndView = resolveErrorView(request, response, status, model);
+		return (modelAndView != null) ? modelAndView : new ModelAndView("error", model);
+	}
+
+	@RequestMapping
+	public ResponseEntity<Map<String, Object>> error(HttpServletRequest request) {
+		Map<String, Object> body = getErrorAttributes(request,
+				isIncludeStackTrace(request, MediaType.ALL));
+		HttpStatus status = getStatus(request);
+		return new ResponseEntity<>(body, status);
+	}
+
+	/**
+	 * Provide access to the error properties.
+	 * @return the error properties
+	 */
+	protected ErrorProperties getErrorProperties() {
+		return this.errorProperties;
+	}
+
+}
+```
+#### Web MVC REST
+##### 资源服务
+@RequestMapping
+	@GetMapping（spring4.3+）
+@ResponseBody
+@RequestBody
+##### 资源跨域
+CrossOrigin（注解驱动）
+WebMvcConfigurer#addCorsMappings（接口编程）
+###### 传统解决方案(目前不推荐以下方式)
+IFrame
+JSONP
+##### 服务发现
+HATEOS
+
+#### Web MVC 核心
+##### 核心架构
+##### 处理流程
+##### 核心组件
+DispatcherServlet
+HandlerMapping
+HandlerAdapter
+ViewResolver
+
 ### 1-10 Spring WebFlux 应用
+#### Reactor 基础
+Java Lambda
+Mono
+Flux
+#### Web Flux 核心
+##### Web MVC 注解兼容
+@Controller
+@RequestMapping
+@ResponseBody
+@RequestBody
+...
+##### 函数式声明
+RouterFunction
+##### 异步非阻塞
+Servlet 3.1 +
+Netty Reactor
+#### 使用场景
+##### 页面渲染
+##### REST 应用
+##### 性能测试
+http://blog.ippon.tech/spring-5-webflux-performance-tests/
+
 ### 1-11 Web Server 应用
+#### 切换Web Server
+Tomcat -> Jetty
+```
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <exclusions>
+            	<!-- 排除Tomcat -->
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-tomcat</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- Use Jetty instead -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jetty</artifactId>
+        </dependency>
+```
+#### 自定义Servlet Web Server
+	WebServerFactoryCustomizer(springboot2.0+)
+![img](./img/01_2019-07-14_23-43-58.png)
+#### 自定义 Reactive Web Server
+	ReactiveWebServerFactoryCustomizer
+
 ### 1-12 数据相关介绍
+#### 关系型数据库
+##### JDBC
+**依赖**
+```
+<dependency>
+<groupId>org.springframework.boot</groupId>
+<artifactId>spring-boot-starter-jdbc</artifactId>
+</dependency>
+```
+**数据源**
+javax.sql.DataSource
+**JdbcTemplate**
+**自动装配**
+DataSourceAutoConfiguration
+
+##### JPA
+**依赖**
+```
+<dependency>
+<groupId>org.springframework.boot</groupId>
+<artifactId>spring-boot-starter-data-jpa</artifactId>
+</dependency>
+
+```
+JDBC和JPA同时引入并不会冲突，jpa其实也需要依赖JDBC(见自动装配的源码@AutoConfigureAfter({ DataSourceAutoConfiguration.class }))
+![img](./img/01_2019-07-15_23-27-46.png)
+```
+@Configuration
+@ConditionalOnClass({ LocalContainerEntityManagerFactoryBean.class, EntityManager.class })
+@Conditional(HibernateEntityManagerCondition.class)
+@EnableConfigurationProperties(JpaProperties.class)
+@AutoConfigureAfter({ DataSourceAutoConfiguration.class })
+@Import(HibernateJpaConfiguration.class)
+public class HibernateJpaAutoConfiguration {...}
+```
+
+**实体映射关系**  
+@javax.persistence.OneToOne
+@javax.persistence.OneToMany
+@javax.persistence.ManyToOne
+@javax.persistence.ManyToMany
+...
+**实体操作**
+javax.persistence.EntityManager
+**自动装配** 
+HibernateJpaAutoConfiguration
+##### JDBC与JPA的区别
+1.JDBC是一组接口规范，各个厂家要实现这个规范，只要引入想要厂商的jar包（mysql、HBASE...），即可连接对应的数据库，代码层面只需调用对应的JDBC接口即可；
+```
+JAVA使用JDBC访问数据库的步骤:
+
+        1.得到数据库驱动程序
+
+         2.创建数据库连接
+
+         3.执行SQL语句
+
+         4.得到结果集
+
+         5.对结果集做相应的处理(增,删,改,查) 
+
+         6.关闭资源:这里释放的是DB中的资源
+```
+2.JDBC直接操作SQL语句；
+3.JPA（Java Persistence API）：用于对象持久化的 API，JPA操作的是持久化对象，由底层持久化对象的数据更新到数据库中，常见的持久化框架是Hibernate（springboot默认是hibernate） 
+
+##### 事务
+**依赖**
+```
+<dependency>
+<groupId>org.springframework</groupId>
+<artifactId>spring-tx</artifactId>
+</dependency>
+```
+**Spring 事务抽象**  
+PlatformTransactionManager
+
+
+**JDBC 事务处理**
+DataSourceTransactionManager
+**自动装配**
+TransactionAutoConfiguration
+	TransactionAutoConfiguration-->PlatformTransactionManager(spring-tx的jar)
+	
+springboot默认的自动装配类都在spring.factories(spring-boot-autoconfigure的jar包)文件中
+![img](./img/01_2019-07-16_00-06-44.png)
+	
+
 ### 1-13 功能扩展介绍
+#### Spring Boot 应用
+##### SpringApplication
+```
+@SpringBootApplication
+public class SpringbootApplication {
+
+    public static void main(String[] args) {
+        new SpringApplicationBuilder(SpringbootApplication.class)
+                //.web(WebApplicationType.NONE)
+                //.profiles("application.properties")
+                .run(args);
+		//上面的写法等价于下面的这个方式，上面的方式可以自定义一些参数
+        //SpringApplication.run(SpringbootApplication.class, args);
+    }
+
+}
+
+```
+
+**失败分析**  
+FailureAnalysisReporter
+**应用特性**
+SpringApplication Fluent API
+**Spring Boot 配置**
+外部化配置
+	ConfigurationProperty（springboot2.0+）
+@Profile
+配置属性
+	PropertySources
+##### Spring Boot Starter
+
 ### 1-14 运维管理介绍
+#### Spring Boot Actuator
+##### 依赖
+```
+<dependency>
+<groupId>org.springframework.boot</groupId>
+<artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
+```
+##### 端点（Endpoints）
+**Web Endpoints** 
+```
+配置文件中添加
+##web端暴露所有的actuator的接口，存在不安全性， 一般jmx Endpoints在内外操作，比较安全
+management.endpoints.web.exposure.include=*
+```
+http://localhost:8080/actuator 查看所有的接口
+
+
+**JMX Endpoints**
+![img](./img/01_2019-07-16_00-54-06.png)
+
+
+##### 健康检查（Health Checks）
+Health
+HealthIndicator
+##### 指标（Metrics）
+##### 内建 Metrics
+Web Endpoint : /actuator/metrics
+
+查看具体的某个接口情况
+http://localhost:8080/actuator/metrics/jvm.memory.used
+##### 自定义 Metrics
 
 ## 第2章 走向自动装配
 完整地讲述了 Spring Boot 是如何从 Spring Framework 逐渐走向组件自动装配的。根据 Spring Framework发展的脉络，首先介绍 “Spring 模式注解装配”，随后讲解 “Spring @Enable 模块装配”，最后讨论 “Spring 条件装配“，掌握 Spring Framework 中所提供的原生能力，并且理解 Spring Boot 是如何...
