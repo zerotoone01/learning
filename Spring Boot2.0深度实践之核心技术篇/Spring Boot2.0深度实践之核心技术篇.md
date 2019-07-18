@@ -499,8 +499,71 @@ http://localhost:8080/actuator/metrics/jvm.memory.used
 ## 第2章 走向自动装配
 完整地讲述了 Spring Boot 是如何从 Spring Framework 逐渐走向组件自动装配的。根据 Spring Framework发展的脉络，首先介绍 “Spring 模式注解装配”，随后讲解 “Spring @Enable 模块装配”，最后讨论 “Spring 条件装配“，掌握 Spring Framework 中所提供的原生能力，并且理解 Spring Boot 是如何...
 ### 2-1 走向自动装配
+Spring Framework手动装配
+Spring Boot自动装配（源于spring framework手动装配）
 ### 2-2 Spring Framework 手动装配
+#### Spring模式注解装配
+定义： 一种用户声明在应用中扮演“组件”角色的注解
+举例： @Component、@Service、@Configuration等
+装配：<context:component-scan>或@ComponentScan
+
+##### [模式注解(Stereotype Annotations)](https://github.com/spring-projects/spring-framework/wiki/Spring-Annotation-Programming-Model#stereotype-annotations)
+> A stereotype annotation is an annotation that is used to declare the role that a component plays within the application. For example, the @Repository annotation in the Spring Framework is a marker for any class that fulfills the role or stereotype of a repository (also known as Data Access Object or DAO).
+@Component is a generic stereotype for any Spring-managed component. Any component annotated with @Component is a candidate for component scanning. Similarly, any component annotated with an annotation that is itself meta-annotated with @Component is also a candidate for component scanning. For example, @Service is meta-annotated with @Component.   
+
+
+模式注解是一种用于声明在应用中扮演“组件”角色的注解。如 Spring Framework 中的 @Repository 标注在任何类上 ，用于扮演仓储角色的模式注解。
+@Component 作为一种由 Spring 容器托管的通用模式组件，任何被 @Component 标准的组件均为组件扫描的候选对象。类似地，凡是被 @Component 元标注（meta-annotated）的注解，如 @Service ，当任何组件标注它时，也被视作组件扫描的候选对象
+
+###### 模式注解举例
+|Spring Framework 注解|场景说明|起始版本|
+|--|--|--|
+|@Repository| 数据仓储模式注解 |2.0|
+|@Component |通用组件模式注解|2.5|
+|@Service| 服务模式注解 |2.5|
+|@Controller| Web 控制器模式注解 |2.5|
+|@Configuration |配置类模式注解 |3.0|
+
+**装配方式**
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xmlns:context="http://www.springframework.org/schema/context"
+xsi:schemaLocation="http://www.springframework.org/schema/beans
+http://www.springframework.org/schema/beans/spring-beans.xsd
+http://www.springframework.org/schema/context http://www.springframework.org/schema/context/springcontext.xsd">
+<!-- 激活注解驱动特性 -->
+<context:annotation-config />
+<!-- 找寻被 @Component 或者其派生 Annotation 标记的类（Class），将它们注册为 Spring Bean -->
+<context:component-scan base-package="com.imooc.dive.in.spring.boot"/>
+</beans>
+```
+**@ComponentScan 方式**
+```
+@ComponentScan(basePackages = "com.imooc.dive.in.spring.boot")
+public class SpringConfiguration {
+...
+}
+```
+##### 自定义模式注解
+
+#### Spring @Enable模块装配
+##### @Enable注解模块举例
+##### 实现方式
+	注解驱动方式
+	接口编程方式
+##### 自定义@Enable模块
+	基于注解驱动实现的@EnableHelloWorld
+	基于接口驱动实现的@EnableServer
+
+#### spring条件装配
+##### 
+
+
+
 ### 2-3 Spring Framework手动装配自定义模式注解
+
 ### 2-4 Spring Framework 手动装配 - @Enable 基于注解驱动方式
 ### 2-5 Spring Framework  @Enable  - 自定义 @Enable 基于接口驱动实现
 ### 2-6 @Enable 模块装配两种方式
