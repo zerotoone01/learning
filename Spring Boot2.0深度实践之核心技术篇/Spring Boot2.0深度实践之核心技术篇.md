@@ -524,47 +524,132 @@ Spring Boot自动装配（源于spring framework手动装配）
 |@Controller| Web 控制器模式注解 |2.5|
 |@Configuration |配置类模式注解 |3.0|
 
-**装配方式**
+### 2-3 Spring Framework手动装配自定义模式注解 
+##### 自定义模式注解
+**@Component “派生性”**:
+	@FirstLevelRepository-->@Repository-->@Component
 ```
-<?xml version="1.0" encoding="UTF-8"?>
-<beans xmlns="http://www.springframework.org/schema/beans"
-xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-xmlns:context="http://www.springframework.org/schema/context"
-xsi:schemaLocation="http://www.springframework.org/schema/beans
-http://www.springframework.org/schema/beans/spring-beans.xsd
-http://www.springframework.org/schema/context http://www.springframework.org/schema/context/springcontext.xsd">
-<!-- 激活注解驱动特性 -->
-<context:annotation-config />
-<!-- 找寻被 @Component 或者其派生 Annotation 标记的类（Class），将它们注册为 Spring Bean -->
-<context:component-scan base-package="com.imooc.dive.in.spring.boot"/>
-</beans>
-```
-**@ComponentScan 方式**
-```
-@ComponentScan(basePackages = "com.imooc.dive.in.spring.boot")
-public class SpringConfiguration {
-...
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+@Repository
+public @interface FirstLevelRepository {
+
+    String value() default "";
 }
 ```
-##### 自定义模式注解
+**@Component “层次性”**:
+	@FirstLevelRepository-->@Repository-->@Component
+```
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+@FirstLevelRepository
+public @interface SecondLevelRepository {
+    String value() default "";
+}
+```
+启动类
+![img](./img/02_2019-07-21_22-19-18.png)  
 
-#### Spring @Enable模块装配
-##### @Enable注解模块举例
-##### 实现方式
-	注解驱动方式
-	接口编程方式
-##### 自定义@Enable模块
-	基于注解驱动实现的@EnableHelloWorld
-	基于接口驱动实现的@EnableServer
+```
+package com.huangxi.springboot.bootstrap;
 
-#### spring条件装配
-##### 
+import com.huangxi.springboot.repository.MyFirstLevelRepository;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.WebApplicationType;
+import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.context.annotation.ComponentScan;
+
+@ComponentScan(basePackages = {"com.huangxi.springboot.repository"})
+public class RepositoryBootstrap {
 
 
+    public static void main(String[] args) {
 
-### 2-3 Spring Framework手动装配自定义模式注解
+        ConfigurableApplicationContext context = new SpringApplicationBuilder(RepositoryBootstrap.class)
+                .web(WebApplicationType.NONE)
+                .run(args);
+
+        //获取指定的bean对象
+        MyFirstLevelRepository myFirstLevelRepository = (MyFirstLevelRepository) context.getBean("myFirstLevelRepository");
+
+        System.out.println("myFirstLevelRepository=="+myFirstLevelRepository);
+        //关闭上下文
+        context.close();
+        
+        //SpringApplication.run需要读取默认配置文件， 如果配置文件不在默认位置，启动失败
+//        ConfigurableApplicationContext run = SpringApplication.run(RepositoryBootstrap.class, args);
+//        MyFirstLevelRepository myFirstLevelRepository22 = run.getBean("myFirstLevelRepository" , MyFirstLevelRepository.class);
+//        System.out.println("myFirstLevelRepository22222222=="+myFirstLevelRepository22);
+    }
+}
+```
+
 
 ### 2-4 Spring Framework 手动装配 - @Enable 基于注解驱动方式
+##### Spring @Enable模块装配
+定义：具备相同领域的功能组件集合，组合所形成一个独立的单元
+举例：@EnableWebMvc、@EnableAutoConfiguration等
+实现： 注解方式、编程方式
+
+Spring Framework 3.1 开始支持”@Enable 模块驱动“。所谓“模块”是指具备相同领域的功能组件集合， 组合所形成一个独立的单元。比如 Web MVC 模块、AspectJ代理模块、Caching（缓存）模块、JMX（Java 管 理扩展）模块、Async（异步处理）模块等。
+
+###### @Enable 注解模块举例
+|框架实现| @Enable注解模块 |激活模块|
+|--|--|--|
+|Spring Framework| @EnableWebMvc| Web MVC 模块|
+| |@EnableTransactionManagement| 事务管理模块|
+| |@EnableCaching |Caching模块 |
+| |@EnableMBeanExport| JMX 模块|
+| |@EnableAsync |异步处理模块|
+| |EnableWebFlux |Web Flux 模块|
+| |@EnableAspectJAutoProxy| AspectJ 代理模块|
+||||
+|Spring Boot| @EnableAutoConfiguration| 自动装配模块|
+| |@EnableManagementContext| Actuator 管理模块|
+| |@EnableConfigurationProperties| 配置属性绑定模块|
+| |@EnableOAuth2Sso| OAuth2 单点登录模块|
+||||
+|Spring Cloud| @EnableEurekaServer| Eureka服务器模块|
+| |@EnableConfigServer| 配置服务器模块|
+| |@EnableFeignClients| Feign客户端模块|
+| |@EnableZuulProxy| 服务网关Zuul 模块|
+| |@EnableCircuitBreaker |服务熔断模块|
+
+#### 实现方式
+##### 注解驱动方式
+查看框架中的@EnableWebMvc注解
+```
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.TYPE)
+@Documented
+@Import(DelegatingWebMvcConfiguration.class)
+public @interface EnableWebMvc {
+}
+
+
+@Configuration
+public class DelegatingWebMvcConfiguration extends WebMvcConfigurationSupport {
+...}
+```
+
+##### 接口编程方式
+
+查看框架中的@EnableCaching
+```
+
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+@Import(CachingConfigurationSelector.class)
+public @interface EnableCaching {...}
+
+
+```
+#### 自定义注解模块
+
 ### 2-5 Spring Framework  @Enable  - 自定义 @Enable 基于接口驱动实现
 ### 2-6 @Enable 模块装配两种方式
 ### 2-7 Spring条件装配
