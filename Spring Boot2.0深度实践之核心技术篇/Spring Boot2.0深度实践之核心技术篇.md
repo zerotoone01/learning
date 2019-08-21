@@ -639,7 +639,6 @@ public class DelegatingWebMvcConfiguration extends WebMvcConfigurationSupport {
 
 查看框架中的@EnableCaching
 ```
-
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented

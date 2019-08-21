@@ -15,7 +15,7 @@
  2-2 UML类图讲解
  2-3 UML类图讲解-自上而下
  2-4 UML类图讲解-对比讲解联想记忆
- 
+
  ## 第3章 软件设计七大原则
 本章节主要讲解软件设计七大原则，同时结合业务场景及演进手把手coding，让大家更好的理解软件设计原则。
 
@@ -33,19 +33,152 @@
 ## 第4章 简单工厂讲解+Coding+源码解析
 本章节主要讲解简单工厂定义及理解，适用场景，优缺点及扩展。并引入业务场景，一边coding一边讲解，最后对简单工厂在框架(jdk+slf4j等)源码中的应用进行解析，让大家领略简单工厂的妙用技巧。
 
- 4-1 简单工厂讲解
+ ### 4-1 简单工厂讲解
+ 工厂中已经定义好了具体的实现类，要用的时候直接根据指定条件去工厂取，不需要和具体的上层进行交互，工厂已经有具体的实现了
+
  4-2 简单工厂coding
+
+
  4-3 简单工厂JDK源码解析
+ java.util.Calendar--> getInstance(TimeZone zone, Locale aLocale)
+ 日历中通过传递进来的参数，可以得到对应的子类
+ ```
+  public static Calendar getInstance(TimeZone zone,
+                                       Locale aLocale)
+    {
+        return createCalendar(zone, aLocale);
+    }
+
+    private static Calendar createCalendar(TimeZone zone,
+                                           Locale aLocale)
+    {
+        CalendarProvider provider =
+            LocaleProviderAdapter.getAdapter(CalendarProvider.class, aLocale)
+                                 .getCalendarProvider();
+        if (provider != null) {
+            try {
+                return provider.getInstance(zone, aLocale);
+            } catch (IllegalArgumentException iae) {
+                // fall back to the default instantiation
+            }
+        }
+
+        Calendar cal = null;
+
+        if (aLocale.hasExtensions()) {
+            String caltype = aLocale.getUnicodeLocaleType("ca");
+            if (caltype != null) {
+                switch (caltype) {
+                case "buddhist":
+                cal = new BuddhistCalendar(zone, aLocale);
+                    break;
+                case "japanese":
+                    cal = new JapaneseImperialCalendar(zone, aLocale);
+                    break;
+                case "gregory":
+                    cal = new GregorianCalendar(zone, aLocale);
+                    break;
+                }
+            }
+        }
+        if (cal == null) {
+            if (aLocale.getLanguage() == "th" && aLocale.getCountry() == "TH") {
+                cal = new BuddhistCalendar(zone, aLocale);
+            } else if (aLocale.getVariant() == "JP" && aLocale.getLanguage() == "ja"
+                       && aLocale.getCountry() == "JP") {
+                cal = new JapaneseImperialCalendar(zone, aLocale);
+            } else {
+                cal = new GregorianCalendar(zone, aLocale);
+            }
+        }
+        return cal;
+    }
+ ```
+
+ java.sql.DriverManager -->registerDriver(java.sql.Driver driver)
+ 根据子类的Driver(myql, oracle等)注册到工程中去，例如mysql的jar对应的代码
+ ```
+   <dependency>
+       <groupId>mysql</groupId>
+       <artifactId>mysql-connector-java</artifactId>
+       <version>5.1.6</version>
+   </dependency>
+ 
+ package com.mysql.jdbc;
+
+import java.sql.DriverManager;
+import java.sql.SQLException;
+
+public class Driver extends NonRegisteringDriver implements java.sql.Driver {
+    public Driver() throws SQLException {
+    }
+
+    static {
+        try {
+            DriverManager.registerDriver(new Driver());
+        } catch (SQLException var1) {
+            throw new RuntimeException("Can't register driver!");
+        }
+    }
+}
+ ```
+
+
 ## 第5章 工厂方法模式讲解+Coding+源码解析
 本章节主要讲解工厂方法模式定义及理解，适用场景，优缺点及扩展。并引入业务场景，一边coding一边讲解，最后对工厂方法模式在框架(jdk+slf4j等)源码中的应用进行解析，让大家领略工厂方法模式的妙用技巧。
 
- 5-1 工厂方法讲解
- 5-2 工厂方法coding
- 5-3 工厂方法源码解析(jdk+logback)
+### 5-1 工厂方法讲解
+定义： 定义一个创建对象的接口，但让实现这个接口的类来决定实例化哪个类工厂方法让类的实例化推迟到子类中进行
+
+类型： 创建型
+
+适用场景： 
+1.创建对象需要大量重复代码；
+2.客户端（应用层）不依赖于产品类实例如何被创建、实现等细节
+3.一个类通过其子类来指定创建哪个对象
+
+优点：
+用户只需要关心所需产品对应的工厂，无须关心细节
+加入新产品符合开闭原则，提高可扩展性
+
+缺点：
+类的个数容易过多，增加复杂度
+增加了系统的抽象性和理解难度
+
+### 5-2 工厂方法coding
+总工厂（定义规范以及一些公用的实现方法） -->子工厂（根据总工厂的规范来具体实现自己需要的产品） --> 产品（继承或者实现产品族特性） <---产品族（产品的通用特性，抽象类或接口） 
+### 5-3 工厂方法源码解析(jdk+logback)
 ## 第6章 抽象工厂模式讲解+Coding+源码解析
 本章节主要讲解抽象工厂模式定义及理解，适用场景，优缺点及扩展。并引入业务场景，一边coding一边讲解，最后对抽象工厂模式在框架(jdk+mybatis等)源码中的应用进行解析，让大家领略抽象工厂模式的妙用技巧。
 
- 6-1 抽象工厂讲解
+### 6-1 抽象工厂讲解
+定义：抽象工厂模式提供一个创建创建一系列相关或互相依赖对象的接口
+无须指定它们具体的类
+类型： 创建型
+适用场景：
+1.客户端不依赖于产品类实例如何被创建、实现等细节
+2.强调一系列相关的产品对象（属于同一产品族）一起使用创建对象需要大量重复的代码
+3.提供一个产品的库类，所有的产品以同样的接口出现，从而使客户端不同于依赖于具体实现；
+
+优点：
+1.具体产品在应用层代码隔离，无须关心创建细节；
+2.将一个系列的产品族统一到一起创建；
+
+缺点：
+1.规定了所有可能被创建的产品集合，产品族中扩展新的产品困难，需要修改抽象工厂的接口；
+2.增加了系统的抽象性和理解难度
+
+![img](./img/06_2019-08-22_00-36-55.png)
+(1) 产品等级结构：产品等级结构即产品的继承结构，如一个抽象类是电视机，其子类有海尔电视机、海信电视机、TCL电视机，则抽象电视机与具体品牌的电视机之间构成了一个产品等级结构，抽象电视机是父类，而具体品牌的电视机是其子类。
+
+(2) 产品族：在抽象工厂模式中，产品族是指由同一个工厂生产的，位于不同产品等级结构中的一组产品，如海尔电器工厂生产的海尔电视机、海尔电冰箱、海尔洗衣机，海尔电视机位于电视机产品等级结构中，海尔电冰箱位于电冰箱产品等级结构中，海尔洗衣机位于电冰箱产品等级结构中，海尔电视机、海尔电冰箱构成了一个产品族。
+
+![img](./img/06_2019-08-22_00-46-31.png)
+
+参考：[抽象工厂模式：产品等级结构与产品族](https://blog.csdn.net/w405722907/article/details/87798453)
+
+抽象工厂和工厂模式的区别？
+
  6-2 抽象工厂coding
  6-3 抽象工厂源码解析
 ## 第7章 建造者模式讲解+Coding+源码解析
@@ -87,14 +220,14 @@
  11-1 装饰者模式讲解
  11-2 装饰者模式coding
  11-3 装饰者模式源码解析(spring-session mybatis jdk servlet)
- 
+
 ## 第12章 适配器模式讲解+Coding+源码解析
 本章节主要讲解适配器模式定义及理解，适用场景，优缺点及扩展。并引入业务场景，一边coding一边讲解，最后对适配器模式在框架(jdk+spring等)源码中的应用进行解析，，让大家领略适配器模式的妙用技巧。
 
  12-1 适配器模式讲解
  12-2 适配器模式coding
  12-3 适配器模式源码解析(jdk+spring+springjpa+springmvc)
- 
+
 ## 第13章 享元模式讲解+Coding+源码解析
 本章节主要讲解享元模式定义及理解，适用场景，优缺点及扩展。并引入业务场景，一边coding一边讲解，最后对享元模式在框架(jdk+apache-common-pool)源码中的应用进行解析，让大家领略享元模式的妙用技巧。
 
