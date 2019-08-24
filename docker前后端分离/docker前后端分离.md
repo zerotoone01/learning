@@ -207,6 +207,42 @@ XTRABACKUP_PASSWORD：表示集群通信密码
 --ip：指定IP
 ```
 创建集群的命令
+![img](./img/04_2019-08-25_04-01-49.png)
+
+https://blog.csdn.net/attwice/article/details/81434920
+
+创建mysql集群
+```
+root@ubuntu:~# mkdir /etc/mysql3307
+root@ubuntu:~# mkdir /etc/mysql3308
+root@ubuntu:~# mkdir /etc/mysql3309
+root@ubuntu:~# mkdir /etc/mysql3310
+root@ubuntu:~# mkdir /etc/mysql3311
+root@ubuntu:~# cp /etc/mysql/my.cnf /etc/mysql3307/
+root@ubuntu:~# cp /etc/mysql/my.cnf /etc/mysql3308
+root@ubuntu:~# cp /etc/mysql/my.cnf /etc/mysql3309
+root@ubuntu:~# cp /etc/mysql/my.cnf /etc/mysql3310
+root@ubuntu:~# cp /etc/mysql/my.cnf /etc/mysql3311
+
+#启动mysql容器
+docker run -p 3307:3306 --name mysql3307 -v /etc/mysql3307:/etc/mysql/conf.d -e MYSQL_ROOT_PASSWORD=root -d mysql:5.7
+docker run -p 3308:3306 --name mysql3308 -v /etc/mysql3308:/etc/mysql/conf.d -e MYSQL_ROOT_PASSWORD=root -d mysql:5.7
+docker run -p 3309:3306 --name mysql3309 -v /etc/mysql3309:/etc/mysql/conf.d -e MYSQL_ROOT_PASSWORD=root -d mysql:5.7
+docker run -p 3310:3306 --name mysql3310 -v /etc/mysql3310:/etc/mysql/conf.d -e MYSQL_ROOT_PASSWORD=root -d mysql:5.7
+docker run -p 3311:3306 --name mysql3311 -v /etc/mysql3311:/etc/mysql/conf.d -e MYSQL_ROOT_PASSWORD=root -d mysql:5.7
+
+
+#Navicat要连接上数据库，需要进行如下设置
+
+root@ubuntu:/# docker exec -it 容器id
+root@0c3ea23dcf71:/# mysql -uroot -p
+mysql> use mysql;
+mysql> grant all privileges on *.* to root@"%" identified by "password" with grant option;
+#这一步很重要
+mysql>  set password for "root"@"%"=password("root");
+mysql> flush privileges;
+```
+
 ```
 #创建容器卷
 docker volume create v1
@@ -225,13 +261,13 @@ docker run -d -p 3308:3306 -v v2:/var/lib/mysql -e MYSQL_ROOT_PASSWORD=root -e C
 
 
  #node3
-docker run -d -p 3309:3306 -v v3:/var/lib/mysql -e MYSQL_ROOT_PASSWORD=root -e CLUSTER_NAME=PXC -e XTRABACKUP_PASSWORD=root -e CLUSTER_JOIN=node1 --privileged --name=node2 --net=net1 --ip 172.18.0.4 pxc
+docker run -d -p 3309:3306 -v v3:/var/lib/mysql -e MYSQL_ROOT_PASSWORD=root -e CLUSTER_NAME=PXC -e XTRABACKUP_PASSWORD=root -e CLUSTER_JOIN=node1 --privileged --name=node3 --net=net1 --ip 172.18.0.4 pxc
 
  #node4
-docker run -d -p 3310:3306 -v v4:/var/lib/mysql -e MYSQL_ROOT_PASSWORD=root -e CLUSTER_NAME=PXC -e XTRABACKUP_PASSWORD=root -e CLUSTER_JOIN=node1 --privileged --name=node2 --net=net1 --ip 172.18.0.5 pxc
+docker run -d -p 3310:3306 -v v4:/var/lib/mysql -e MYSQL_ROOT_PASSWORD=root -e CLUSTER_NAME=PXC -e XTRABACKUP_PASSWORD=root -e CLUSTER_JOIN=node1 --privileged --name=node4 --net=net1 --ip 172.18.0.5 pxc
 
  #node5
-docker run -d -p 3311:3306 -v v5:/var/lib/mysql -e MYSQL_ROOT_PASSWORD=root -e CLUSTER_NAME=PXC -e XTRABACKUP_PASSWORD=root -e CLUSTER_JOIN=node1 --privileged --name=node2 --net=net1 --ip 172.18.0.6 pxc
+docker run -d -p 3311:3306 -v v5:/var/lib/mysql -e MYSQL_ROOT_PASSWORD=root -e CLUSTER_NAME=PXC -e XTRABACKUP_PASSWORD=root -e CLUSTER_JOIN=node1 --privileged --name=node5 --net=net1 --ip 172.18.0.6 pxc
 ```
 
 
