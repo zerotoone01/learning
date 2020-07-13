@@ -1,4 +1,5 @@
 import com.huangxi.bytecode.Base;
+import com.huangxi.bytecode.BaseLogger;
 import org.junit.Test;
 
 /**
@@ -15,5 +16,11 @@ public class BaseTest {
     public void baseTest(){
         Base base = new Base();
         base.process();
+    }
+
+    @Test
+    public void BaseLoggerTest() throws Exception {
+        BaseLogger baseLogger = new BaseLogger();
+        baseLogger.baseLog();
     }
 }

@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 
 /**
+ *  生成器， 生成指定的字节码文件
  *  字节码增强器， 给 com/huangxi/bytecode/Base 已编译的Base.class字节码， 采用MyClassVisitor来改变已有的字节码
  *   https://tech.meituan.com/2019/09/05/java-bytecode-enhancement.html
  */
