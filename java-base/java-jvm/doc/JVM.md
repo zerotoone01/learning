@@ -2,9 +2,9 @@
 
 |  GC算法类型  | 算法说明  | 具体的GC |
 |  ----  | ----  | ----  |
-| 复制算法  | 内存划分为两半，一半为空，空间浪费 | Serial, ParNew, Parallel Scavenge|
-| 标记整理  | 效率较低 | Serial Old, Parallel Old |
-| 标记清除  | 效率高；碎片多 | CMS, |
+| 标记-复制  | 内存划分为两半，一半为空，空间浪费 | Serial, ParNew, Parallel Scavenge|
+| 标记-整理  | 效率较低 | Serial Old, Parallel Old |
+| 标记-清除  | 效率高；碎片多 | CMS, |
 
 垃圾回收类型
 
@@ -51,6 +51,14 @@ jdk8+: 已经把永久代(Permanent Generation)的部分内容放在元数据空
 
 引用计数（Reference Counting）算法
 可达性分析（Reachability Analysis）算法
+
+
+回收方法区
+方法区的垃圾收集主要回收两部分内容： 废弃的常量和不再使用的类。   
+安全点： 
+安全点位置的选取基本上是以“是否具有让程序长时间执行的特征”为标准进行选定的。 <这个特征的具体选定标准是什么？具体实现原理？>
+程序在安全点停顿方案： 抢先式中断（Preemptive Suspension） 和主动式中断（Voluntary Suspension） 
+
 
 
 
