@@ -5,3 +5,4 @@
 /java-asm/java-asm.iml
 /java-jvm/*.iml
 /java-jvm/target/
+/java-spi/target/
