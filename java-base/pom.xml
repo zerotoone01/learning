@@ -11,6 +11,7 @@
     <modules>
         <module>java-asm</module>
         <module>java-jvm</module>
+        <module>java-spi_service</module>
     </modules>
 
     <dependencies>
