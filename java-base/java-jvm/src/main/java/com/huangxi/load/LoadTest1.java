@@ -1,4 +1,4 @@
-package com.huangxi.spi.load;
+package com.huangxi.load;
 
 /**
  * https://juejin.im/post/5a810b0e5188257a5c606a85

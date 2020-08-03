@@ -1,4 +1,4 @@
-package com.huangxi.spi.base;
+package com.huangxi.base;
 
 public class BaseLogger {
 

@@ -1,4 +1,4 @@
-package com.huangxi.spi.bytecode;
+package com.huangxi.bytecode;
 
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
@@ -8,9 +8,9 @@ import org.objectweb.asm.Opcodes;
  * @description TODO
  * @date 2020-07-13
  */
-public class MyClassVisitor2 extends ClassVisitor implements Opcodes {
+public class MyClassVisitor extends ClassVisitor implements Opcodes {
 
-    public MyClassVisitor2(ClassVisitor cv) {
+    public MyClassVisitor(ClassVisitor cv) {
         super(ASM5, cv);
     }
     @Override
@@ -39,13 +39,18 @@ public class MyClassVisitor2 extends ClassVisitor implements Opcodes {
         @Override
         public void visitCode() {
             super.visitCode();
-            mv.visitMethodInsn(INVOKESTATIC, "com/huangxi/spi/bytecode/MyTimeLogger", "start", "()V", false);
+            mv.visitFieldInsn(GETSTATIC, "java/lang/System", "out", "Ljava/io/PrintStream;");
+            mv.visitLdcInsn("start");
+            mv.visitMethodInsn(INVOKEVIRTUAL, "java/io/PrintStream", "println", "(Ljava/lang/String;)V", false);
         }
         @Override
         public void visitInsn(int opcode) {
             if ((opcode >= Opcodes.IRETURN && opcode <= Opcodes.RETURN)
                     || opcode == Opcodes.ATHROW) {
-                mv.visitMethodInsn(INVOKESTATIC, "com/huangxi/spi/bytecode/MyTimeLogger", "end", "()V", false);
+                //方法在返回之前，打印"end"
+                mv.visitFieldInsn(GETSTATIC, "java/lang/System", "out", "Ljava/io/PrintStream;");
+                mv.visitLdcInsn("end");
+                mv.visitMethodInsn(INVOKEVIRTUAL, "java/io/PrintStream", "println", "(Ljava/lang/String;)V", false);
             }
             mv.visitInsn(opcode);
         }

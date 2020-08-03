@@ -1,5 +1,5 @@
-import com.huangxi.spi.bytecode.Base;
-import com.huangxi.spi.bytecode.BaseLogger;
+import com.huangxi.bytecode.Base;
+import com.huangxi.bytecode.BaseLogger;
 import org.junit.Test;
 
 /**

@@ -1,6 +1,6 @@
-package com.huangxi.spi.agent;
+package com.huangxi.agent;
 
-import com.huangxi.spi.bytecode.BaseJavassist;
+import com.huangxi.bytecode.BaseJavassist;
 
 import java.lang.instrument.Instrumentation;
 

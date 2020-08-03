@@ -1,4 +1,4 @@
-package com.huangxi.spi.gc;
+package com.huangxi.gc;
 
 /**
  * 此代码演示了两点：

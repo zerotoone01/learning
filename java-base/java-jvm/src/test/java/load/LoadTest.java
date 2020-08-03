@@ -1,7 +1,7 @@
 package load;
 
 
-import com.huangxi.spi.load.SingleTon;
+import com.huangxi.load.SingleTon;
 import org.junit.Test;
 
 /**

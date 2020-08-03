@@ -1,4 +1,4 @@
-package com.huangxi.spi.bytecode;
+package com.huangxi.bytecode;
 
 import java.lang.management.ManagementFactory;
 

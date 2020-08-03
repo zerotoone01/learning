@@ -1,6 +1,6 @@
-package com.huangxi.spi.bytecode;
+package com.huangxi.base;
 
-public class MyTimeLogger {
+public class MyTimeLoger {
     private static long a1=0;
     public static void start(){
         a1 = System.currentTimeMillis();

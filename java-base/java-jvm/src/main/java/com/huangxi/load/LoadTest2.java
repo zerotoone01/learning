@@ -1,4 +1,4 @@
-package com.huangxi.spi.load;
+package com.huangxi.load;
 
 /**
  * 分析:

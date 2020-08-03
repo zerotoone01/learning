@@ -1,6 +1,6 @@
-package com.huangxi.spi.main;
+package com.huangxi.main;
 
-import com.huangxi.spi.bytecode.BaseJavassist;
+import com.huangxi.bytecode.BaseJavassist;
 import javassist.*;
 
 import java.io.IOException;

@@ -1,4 +1,4 @@
-package com.huangxi.spi.gc;
+package com.huangxi.gc;
 
 public class User {
     //目的是让对象填满内存，观察垃圾回收机制

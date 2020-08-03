@@ -56,8 +56,8 @@
                             <addClasspath>true</addClasspath>
                         </manifest>
                         <manifestEntries>
-                            <Premain-Class>com.huangxi.spi.agent.TestAgent</Premain-Class>
-                            <Agent-Class>com.huangxi.spi.agent.TestAgent</Agent-Class>
+                            <Premain-Class>com.huangxi.agent.TestAgent</Premain-Class>
+                            <Agent-Class>com.huangxi.agent.TestAgent</Agent-Class>
                             <Can-Redefine-Classes>true</Can-Redefine-Classes>
                             <Can-Retransform-Classes>true</Can-Retransform-Classes>
                         </manifestEntries>

@@ -1,4 +1,4 @@
-package com.huangxi.spi.gc;
+package com.huangxi.gc;
 
 import java.lang.ref.*;
 import java.util.ArrayList;

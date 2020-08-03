@@ -1,6 +1,6 @@
-package com.huangxi.spi.main;
+package com.huangxi.main;
 
-import com.huangxi.spi.bytecode.MyClassVisitor2;
+import com.huangxi.bytecode.MyClassVisitor2;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
@@ -16,7 +16,7 @@ import java.io.FileOutputStream;
 public class MyLoggerGenerator {
     public static void main(String[] args) throws Exception {
         //读取 已加载类
-        ClassReader classReader = new ClassReader("com/huangxi/spi/bytecode/BaseLogger");
+        ClassReader classReader = new ClassReader("com/huangxi/bytecode/BaseLogger");
         ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS);
         //处理
         ClassVisitor classVisitor = new MyClassVisitor2(classWriter);

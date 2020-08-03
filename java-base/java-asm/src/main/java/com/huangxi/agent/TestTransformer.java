@@ -1,4 +1,4 @@
-package com.huangxi.spi.agent;
+package com.huangxi.agent;
 
 import javassist.ClassPool;
 import javassist.CtClass;

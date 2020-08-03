@@ -1,4 +1,4 @@
-package com.huangxi.spi.bytecode;
+package com.huangxi.bytecode;
 
 public class ByteCodeDemo {
     private static final String name = "xiaoming";
