@@ -6,3 +6,6 @@
 /java-jvm/*.iml
 /java-jvm/target/
 /java-spi/target/
+/java-spi/java-spi.iml
+/java-proxy/java-proxy.iml
+/java-proxy/target/

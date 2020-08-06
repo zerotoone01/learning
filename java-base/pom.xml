@@ -12,6 +12,7 @@
         <module>java-asm</module>
         <module>java-jvm</module>
         <module>java-spi</module>
+        <module>java-proxy</module>
     </modules>
 
     <!--  dependencyManagement里只是声明依赖，并不实现引入，因此子项目需要显示的声明需要用的依赖  -->
