@@ -9,3 +9,5 @@
 /java-spi/java-spi.iml
 /java-proxy/java-proxy.iml
 /java-proxy/target/
+/java-thread/*.iml
+/java-thread/target/
