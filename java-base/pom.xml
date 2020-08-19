@@ -16,6 +16,14 @@
         <module>java-thread</module>
     </modules>
 
+    <!-- https://www.cnblogs.com/larryzeal/p/5552360.html -->
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+        <maven.compiler.compilerVersion>1.8</maven.compiler.compilerVersion>
+    </properties>
+
     <!--  dependencyManagement里只是声明依赖，并不实现引入，因此子项目需要显示的声明需要用的依赖  -->
     <dependencyManagement>
         <dependencies>
@@ -28,6 +36,7 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
 
 
 </project>
