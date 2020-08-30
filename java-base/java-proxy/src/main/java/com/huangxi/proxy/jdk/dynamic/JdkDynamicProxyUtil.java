@@ -18,6 +18,7 @@ public class JdkDynamicProxyUtil {
     public static <T> T newProxyInstance(T targetObject, InvocationHandler handler){
         //获取类加载器
         ClassLoader classLoader = targetObject.getClass().getClassLoader();
+        // 采用jdk代理的类必须要有具体的实现接口，否则会抛异常
         Class<?>[] interfaces = targetObject.getClass().getInterfaces();
         return (T)Proxy.newProxyInstance(classLoader,interfaces,handler);
     }

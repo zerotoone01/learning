@@ -1,5 +1,9 @@
-package com.huangxi.proxy.jdk;
+package com.huangxi.proxy;
 
+import com.huangxi.proxy.cglib.AspectMethodInterceptor;
+import com.huangxi.proxy.cglib.impl.CommonOperation;
+import com.huangxi.proxy.cglib.util.CglibUtil;
+import com.huangxi.proxy.jdk.*;
 import com.huangxi.proxy.jdk.dynamic.AspectInvocationHandler;
 import com.huangxi.proxy.jdk.dynamic.JdkDynamicProxyUtil;
 
@@ -24,7 +28,7 @@ public class App {
         helloInterface1.sayHello();
     }
 
-    public static void main(String[] args) {
+    public static void main2(String[] args) {
         //采用jdk 动态代理方式实现切面
         //优势：
         //1.切面逻辑可以复用，不需要再单独去实现具体的子类；
@@ -38,6 +42,21 @@ public class App {
         InvocationHandler invocationHandler2 = new AspectInvocationHandler(helloInterface2);
         HelloInterface hello2 = JdkDynamicProxyUtil.newProxyInstance(helloInterface2, invocationHandler2);
         hello2.sayHello();
+    }
 
+    public static void main(String[] args) {
+//        CommonOperation commonOperation = new CommonOperation();
+//        AspectInvocationHandler aspectInvocationHandler = new AspectInvocationHandler(commonOperation);
+//        CommonOperation jdkProxy = JdkDynamicProxyUtil.newProxyInstance(commonOperation, aspectInvocationHandler);
+//        jdkProxy.pay();
+        //Exception in thread "main" java.lang.ClassCastException: com.sun.proxy.$Proxy0 cannot be cast to com.huangxi.proxy.cglib.impl.CommonOperation
+        //	at com.huangxi.proxy.App.main(App.java:50)
+        //说明： jdk 动态代理，其被代理的类一定要有具体实现的接口（CommonOperation没有实现任何接口），否则会抛异常
+
+        // cglib 代理
+        CommonOperation commonOperation = new CommonOperation();
+        AspectMethodInterceptor aspectMethodInterceptor = new AspectMethodInterceptor();
+        CommonOperation commonOperationProxy = CglibUtil.createProxy(commonOperation, aspectMethodInterceptor);
+        commonOperationProxy.pay();
     }
 }
