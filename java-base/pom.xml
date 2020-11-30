@@ -14,6 +14,7 @@
         <module>java-spi</module>
         <module>java-proxy</module>
         <module>java-thread</module>
+        <module>java-design-pattern</module>
     </modules>
 
     <!-- https://www.cnblogs.com/larryzeal/p/5552360.html -->
