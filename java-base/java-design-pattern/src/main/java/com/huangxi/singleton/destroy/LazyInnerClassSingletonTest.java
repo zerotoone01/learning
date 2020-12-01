@@ -21,6 +21,7 @@ public class LazyInnerClassSingletonTest {
             Object o1 = c.newInstance();
             Object o2 = c.newInstance();
             System.out.println(o1==o2);
+            System.out.println("test");
         } catch (NoSuchMethodException e) {
             e.printStackTrace();
         } catch (InstantiationException e) {
