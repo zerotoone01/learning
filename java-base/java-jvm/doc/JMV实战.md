@@ -122,3 +122,21 @@ FGC	    从应用程序启动到采样时old代(全gc)gc次数
 FGCT	从应用程序启动到采样时old代(全gc)gc所用时间(s)
 GCT	    从应用程序启动到采样时gc用的总时间(s)
 ```
+
+* jstat -gc PID 180000 10 
+>3分钟更新出最新的的一行统计信息，一共执行10次
+>
+>1. Young GC的触发频率和每次耗时
+>
+>2. 每次Young GC 后有多少对象是存活和进入老年代的
+>
+>3. Full GC的触发时机和耗时
+>
+>
+使用jmap和jhat摸清线上系统的对象分布
+
+* jmap -dump:live,format=b,file=dump.hprof PID
+>会把这一时刻JVM堆内存里所有对象的快照放在这个文件里
+>
+>1.jvm参数预估；2.性能压测；3.对线上系统进行JVM监控
+
