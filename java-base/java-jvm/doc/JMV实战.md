@@ -139,4 +139,44 @@ GCT	    从应用程序启动到采样时gc用的总时间(s)
 >会把这一时刻JVM堆内存里所有对象的快照放在这个文件里
 >
 >1.jvm参数预估；2.性能压测；3.对线上系统进行JVM监控
+>
 
+jvm对于分代垃圾回收器的优化主要从两方面入手：
+> 1.降低Full GC的频率：
+>
+> 1.1 给一定的Eden和Survivor，尽量每次Young GC后Eden没有被回收的数据进入到Survivor，
+如果Survivor空间不足会直接进入到老年代，进而导致频繁的Full GC；年轻代的大小并不是越大越好，需要结合Young GC的时间，
+单次Young GC时间不宜太久。
+>
+
+>2.Full GC 空间分配与整理：
+>
+>-XX:+UseCMSCompactAtFullCollection  CMSFullGCsBeforeCompaction=5 , 每5次Full GC 整理一次老年代的碎片空间
+>
+>代码层面偶尔产生大对象，如果Young GC的时候Survivor区域放不下，直接会进入老年代，也会导致频繁Full GC。
+
+>3.Full GC 耗时减少：
+>
+> -XX:+CMSScavengeBeforeRemark ， 在CMS GC前启动一次ygc，目的在于减少old gen对ygc gen的引用，降低remark时的开销，一般CMS的GC耗时 80%都在remark阶段
+> -XX:CMSParallelRemarkEnabled， cms标记阶段并发进行，尽可能减少Stop The World的时间
+
+>4.jdk8中Metaspace区域满了，也会触发Full GC
+>
+>GC日志频繁出现这个或者类似的日志： 【Full GC(Metadata GC Threshold) xxx,xxx】
+>
+>有大量反射代码的场景下， -XX:SoftRefLRUPolicyMSPerMB=0 会不断创建新的类，极端情况下会填满Metaspace，
+>这种情况下需要设置大一些，比如SoftRefLRUPolicyMSPerMB的值可以为1000，2000，甚至5000毫秒
+>
+>跟踪办法，在jvm启动参数中添加： -XX:+TraceClassLoading -XX:+TraceClassUnloading ，然后根据日志可以查看
+>
+> https://club.perfma.com/article/172347
+
+公司级别的JVM参数模板
+```
+1. 8G内存的服务器
+
+-Xms4096M -Xmx4096M -Xmn3072M -Xss1M -XX:PermSize=256M -XX:MaxPermSize=256M -XX:+UseParNewGC -XX:+UseConcMarkSweepGC
+-XX:CMSInitiatingOccupancyFraction=92  -XX:+UseCMSCompactAtFullCollection -XX:CMSFullGCsBeforeCompaction=0
+-XX:+CMSScavengeBeforeRemark -XX:CMSParallelRemarkEnabled
+
+```
